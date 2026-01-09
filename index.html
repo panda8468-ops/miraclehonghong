@@ -51,7 +51,8 @@
         
         .icon-grid {
             display: grid;
-            grid-template-columns: repeat(4, auto); /* 自适应列数 */
+            /* 自适应列数：根据容器宽度自动调整列数 */
+            grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
             gap: 8px;
             padding: 5px 0;
             justify-content: start; /* 左对齐 */
@@ -61,16 +62,17 @@
         .icon-grid.collapsed { display: none; }
 
         .item-icon {
-            width: 50px; /* 固定宽度 */
-            height: 50px; /* 固定高度 */
+            /* 固定宽高比，保持圆形 */
+            aspect-ratio: 1 / 1;
             background: #f5f5f5;
             border-radius: 50%;
             cursor: pointer;
             border: 2px solid transparent;
             position: relative;
             overflow: hidden;
-            flex-shrink: 0; /* 不收缩 */
             transition: transform 0.2s, border-color 0.2s;
+            /* 根据容器宽度动态调整大小的基础样式 */
+            max-width: 100%;
         }
 
         .item-icon:hover {
@@ -224,10 +226,50 @@
             transform: scale(0.95);
         }
 
-        /* 响应式调整 */
-        @media (max-width: 768px) {
+        /* 响应式调整 - 大屏幕 (>=1200px) */
+        @media (min-width: 1200px) {
             :root {
-                --sidebar-width: 40%; /* 保持左侧40%，右侧60% */
+                --sidebar-width: 35%; /* 大屏幕稍微减小左侧宽度 */
+            }
+            
+            .category-title {
+                font-size: 16px;
+                padding: 10px 15px;
+            }
+            
+            .icon-grid {
+                gap: 12px;
+            }
+            
+            .item-icon {
+                min-width: 55px;
+            }
+        }
+
+        /* 中等屏幕 (768px - 1199px) */
+        @media (max-width: 1199px) and (min-width: 768px) {
+            :root {
+                --sidebar-width: 40%;
+            }
+            
+            .category-title {
+                font-size: 14px;
+                padding: 8px 12px;
+            }
+            
+            .icon-grid {
+                gap: 10px;
+            }
+            
+            .item-icon {
+                min-width: 48px;
+            }
+        }
+
+        /* 小屏幕 (<768px) */
+        @media (max-width: 767px) {
+            :root {
+                --sidebar-width: 45%; /* 手机端增加左侧宽度 */
             }
             
             .category-title {
@@ -236,13 +278,11 @@
             }
             
             .icon-grid {
-                grid-template-columns: repeat(2, auto); /* 手机端一行最多2个 */
                 gap: 6px;
             }
             
             .item-icon {
-                width: 45px;
-                height: 45px;
+                min-width: 42px;
             }
             
             .control-btn span {
@@ -260,9 +300,10 @@
             }
         }
 
-        @media (max-width: 480px) {
+        /* 超小屏幕 (<480px) */
+        @media (max-width: 479px) {
             :root {
-                --sidebar-width: 40%; /* 保持左侧40%，右侧60% */
+                --sidebar-width: 50%; /* 超小屏幕左侧占一半 */
             }
             
             .category-title {
@@ -271,13 +312,11 @@
             }
             
             .icon-grid {
-                grid-template-columns: repeat(2, auto); /* 手机端一行最多2个 */
                 gap: 4px;
             }
             
             .item-icon {
-                width: 40px;
-                height: 40px;
+                min-width: 38px;
             }
             
             .controls {
@@ -394,10 +433,63 @@
         resetIdleTimer();
         // 绑定全局点击重置计时
         document.body.onclick = resetIdleTimer;
+        
+        // 延迟执行布局调整，确保DOM已完全渲染
+        setTimeout(adjustLayout, 100);
+        // 监听窗口大小变化，实时调整布局
+        window.addEventListener('resize', adjustLayout);
     };
+
+    // 调试日志：记录屏幕和容器尺寸
+    function logLayoutInfo() {
+        const screenWidth = window.innerWidth;
+        const sidebarWidth = document.querySelector('.sidebar')?.offsetWidth || 0;
+        const containerWidth = document.querySelector('.wardrobe-list')?.offsetWidth || 0;
+        console.log(`屏幕宽度: ${screenWidth}px, 侧边栏宽度: ${sidebarWidth}px, 容器宽度: ${containerWidth}px`);
+        
+        // 检查每个分类的物品数量
+        const grids = document.querySelectorAll('.icon-grid');
+        grids.forEach(grid => {
+            const itemCount = grid.querySelectorAll('.item-icon').length;
+            const categoryName = grid.previousElementSibling?.querySelector('span')?.innerText || 'Unknown';
+            console.log(`分类 ${categoryName}: ${itemCount} 个物品`);
+        });
+    }
+
+    // 根据容器宽度动态调整布局
+    function adjustLayout() {
+        const containerWidth = document.querySelector('.wardrobe-list')?.offsetWidth || 200;
+        const grids = document.querySelectorAll('.icon-grid');
+        
+        grids.forEach(grid => {
+            const itemCount = grid.querySelectorAll('.item-icon').length;
+            
+            // 根据容器宽度和物品数量计算最优列数
+            // 容器宽度约200-400px，物品数量1-10个
+            let optimalCols;
+            if (containerWidth < 200) {
+                optimalCols = itemCount <= 2 ? itemCount : 2;
+            } else if (containerWidth < 300) {
+                optimalCols = itemCount <= 3 ? itemCount : 3;
+            } else if (containerWidth < 400) {
+                optimalCols = itemCount <= 4 ? itemCount : 4;
+            } else {
+                optimalCols = Math.min(itemCount, Math.floor(containerWidth / 60));
+            }
+            
+            // 应用计算的列数
+            grid.style.gridTemplateColumns = `repeat(${Math.max(optimalCols, 1)}, 1fr)`;
+        });
+        
+        // 记录布局调整信息
+        console.log(`容器宽度: ${containerWidth}px, 已调整 ${grids.length} 个分类的布局`);
+    }
 
     // 1. 渲染左侧衣橱
     function renderWardrobe() {
+        // 添加调试日志
+        logLayoutInfo();
+        
         const categories = {
             '上衣': ['T', 'shirt', 'knit', 'hoodie'],
             '马甲': ['med'],
