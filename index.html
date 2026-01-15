@@ -394,21 +394,27 @@
         { key: 'bottom', z: 3 }, // 裤子 
         { key: 'shoes', z: 4 }, // 鞋子
         { key: 'tie', z: 5 }, // 配饰 (上衣层级之上)
-        { key: 'head', z: 7 }  // 头饰
+        { key: 'head', z: 7 },  // 头饰
+        { key: 'acc', z: 8 },  // 配件：层级在所有层级之上
+        { key: 'hand', z: 8 }  // 手持：层级与配件相同
     ];
 
     // *重要*：请在这里把你的所有图片文件名列出来 (不带路径)
     // 只要文件名包含上面的关键字，程序就会自动识别分类
     const ASSET_DATABASE = [
+        // 配件
+        "acc1001.png", "acc1002.png", "acc1003.png","acc1004.png",
         // 示例数据，请替换为你真实的文件名
         "bottom1001.png", "bottom1002.png", "bottom1003.png","bottom1004.png", "bottom1005.png", "bottom1006.png", "bottom1007.png",
-        "coat1001-1.png", "coat1001-2.png","coat1001-2.png",
+        "coat1001-1.png", "coat1001-2.png",
         "coat1002-1.png", "coat1002-2.png", "coat1013-1.png", "coat1013-2.png", "coat1014.png", "coat1015.png", 
         "coat1003.png", "coat1004.png","coat1005.png", "coat1006.png", "coat1007-1.png", "coat1007-2.png", "coat1008-1.png", "coat1008-2.png", "coat1009.png","coat1010.png","coat1011.png","coat1012.png",
         "hoodie1001.png","knit1001-1.png","med1001.png","med1002.png",
         "tie1001-1.png","tie1001-2.png","tie1002-1.png","tie1002-2.png","tie1003-1.png","tie1003-2.png","tie1004.png","tie1005-1.png","tie1005-2.png",
         "shirt1001.png","shirt1002.png","shirt1003.png","shirt1004.png","shirt1005.png","shirt1006.png",
-        "shoes1001.png","shoes1002.png","shoes1003.png", "T1001-1.png","T1001-2.png","T1002-1.png","T1003-1.png","T1003-2.png","tie1006.png"
+        "shoes1001.png","shoes1002.png","shoes1003.png", "T1001-1.png","T1001-2.png","T1002-1.png","T1003-1.png","T1003-2.png",
+        // 手持
+        "hand1001.png","hand1002.png"
     ];
 
     const CONFIG = {
@@ -420,12 +426,14 @@
     /* ================= 核心逻辑 (建议不要乱动) ================= */
 
     // 状态管理
-    let currentOutfit = {}; // 当前穿了什么 { type: filename }
+    let currentOutfit = {}; // 当前穿了什么 { type: filename or [filename, ...] }
     let historyStack = [];  // 历史记录
     let currentSelection = null; // 当前选中的衣服类型 (用于上下移层)
     let layerOffsets = {};  // 用于记录用户手动调整的层级 { type: offsetValue }
     let lastWornItem = null; // 最后穿上的衣服 { category: filename }，用于标记选中状态
     let idleTimer = null;
+    // 配件分类可以同时穿戴多个
+    const MULTI_WEAR_CATEGORIES = ['配件'];
 
     // 初始化
     window.onload = function() {
@@ -488,7 +496,6 @@
 
     // 1. 渲染左侧衣橱
     function renderWardrobe() {
-        // 添加调试日志
         logLayoutInfo();
         
         const categories = {
@@ -497,8 +504,10 @@
             '外套': ['coat'],
             '裤子': ['bottom'],
             '鞋子': ['shoes'],
-            '配饰': ['tie', 'acc'],
-            '头饰': ['head']
+            '配饰': ['tie'],
+            '配件': ['acc'],  // 配件分类移到配饰下面
+            '头饰': ['head'],
+            '手持': ['hand']  // 手持分类，与配件同级
         };
 
         const container = document.getElementById('wardrobe-container');
@@ -550,23 +559,42 @@
         saveHistory(); // 记录一步历史
         
         currentSelection = category; // 标记当前选中的分类
-
-        // 如果已经穿了这件，就脱掉
-        if (currentOutfit[category] === filename) {
-            delete currentOutfit[category];
-            // 如果脱掉的是最后穿上的，清空lastWornItem
-            if (lastWornItem && lastWornItem.category === category && lastWornItem.filename === filename) {
-                lastWornItem = null;
+        
+        // 判断是否为配件（可多穿）
+        const isMultiWear = MULTI_WEAR_CATEGORIES.includes(category);
+        console.log(`[穿衣逻辑] 分类: ${category}, 是否可多选: ${isMultiWear}`);
+        
+        if (isMultiWear) {
+            // 配件：支持同时穿戴多个
+            if (!currentOutfit[category]) {
+                currentOutfit[category] = [];
+            }
+            const index = currentOutfit[category].indexOf(filename);
+            if (index > -1) {
+                // 已经穿了，脱掉
+                currentOutfit[category].splice(index, 1);
+                if (currentOutfit[category].length === 0) {
+                    delete currentOutfit[category];
+                }
+            } else {
+                // 没穿，穿上
+                currentOutfit[category].push(filename);
             }
         } else {
-            currentOutfit[category] = filename;
-            // 记录最后穿上的衣服
-            lastWornItem = { category: category, filename: filename };
+            // 非配件：只能穿一件
+            if (currentOutfit[category] === filename) {
+                // 已经穿了这件，就脱掉
+                delete currentOutfit[category];
+                console.log(`[穿衣逻辑] 脱掉: ${category} - ${filename}`);
+            } else {
+                currentOutfit[category] = filename;
+                console.log(`[穿衣逻辑] 穿上: ${category} - ${filename}`);
+            }
         }
-
+        
         // 重置该部件的手动层级偏移
         layerOffsets[category] = 0;
-
+        
         updateUI();
         updateCharacter();
     }
@@ -577,7 +605,16 @@
         document.querySelectorAll('.item-icon').forEach(el => {
             const cat = el.dataset.category;
             const fname = el.dataset.filename;
-            const isWorn = (currentOutfit[cat] === fname);
+            const outfitItem = currentOutfit[cat];
+            
+            // 判断是否穿上（兼容数组和字符串）
+            let isWorn = false;
+            if (Array.isArray(outfitItem)) {
+                isWorn = outfitItem.includes(fname);
+            } else {
+                isWorn = outfitItem === fname;
+            }
+            
             const isLastWorn = (lastWornItem && lastWornItem.category === cat && lastWornItem.filename === fname);
             
             if (isLastWorn) {
@@ -598,32 +635,49 @@
     // 4. 更新右侧角色 (最关键的逻辑)
     function updateCharacter() {
         const charContainer = document.getElementById('character-container');
+        
+        // --- 素体切换逻辑：手持状态决定body图片 ---
+        const hasHandItem = currentOutfit['手持'] && currentOutfit['手持'] !== '';
+        const bodyImage = hasHandItem ? 'body2.png' : 'body.png';
+        console.log(`[素体切换] 手持状态: ${hasHandItem}, 使用素体: ${bodyImage}`);
+        
+        // 更新素体图片
+        const bodyImg = charContainer.querySelector('img[alt="body"]');
+        if (bodyImg) {
+            bodyImg.src = CONFIG.clothPath + bodyImage;
+        }
+        
         // 清除除了body以外的所有图层
         const layers = charContainer.querySelectorAll('img:not([alt="body"])');
         layers.forEach(el => el.remove());
 
         // 遍历当前穿的每一件
-        for (let [cat, filename] of Object.entries(currentOutfit)) {
-            const img = document.createElement('img');
-            img.className = 'clothing-layer';
+        for (let [cat, item] of Object.entries(currentOutfit)) {
+            // 兼容数组（配件）和字符串（普通衣服）
+            const items = Array.isArray(item) ? item : [item];
             
-            // 直接使用文件名作为图片路径
-            img.src = CONFIG.clothPath + filename;
+            items.forEach(filename => {
+                const img = document.createElement('img');
+                img.className = 'clothing-layer';
+                
+                // 直接使用文件名作为图片路径
+                img.src = CONFIG.clothPath + filename;
 
-            // --- 计算层级 ---
-            let baseZ = 0;
-            // 根据文件名关键字匹配默认Z
-            for (let rule of LAYER_RULES) {
-                if (filename.includes(rule.key)) {
-                    baseZ = rule.z;
-                    break;
+                // --- 计算层级 ---
+                let baseZ = 0;
+                // 根据文件名关键字匹配默认Z
+                for (let rule of LAYER_RULES) {
+                    if (filename.includes(rule.key)) {
+                        baseZ = rule.z;
+                        break;
+                    }
                 }
-            }
-            // 加上手动调节的偏移量
-            const offset = layerOffsets[cat] || 0;
-            img.style.zIndex = baseZ + offset;
+                // 加上手动调节的偏移量
+                const offset = layerOffsets[cat] || 0;
+                img.style.zIndex = baseZ + offset;
 
-            charContainer.appendChild(img);
+                charContainer.appendChild(img);
+            });
         }
     }
 
@@ -669,6 +723,9 @@
             case '鞋子': // 鞋子只能在裤子上一层或下一层 (z=2,3,4)
                 // 裤子z=3, 鞋子可选z=2,3,4
                 if (newZ < 2 || newZ > 4) isValid = false;
+                break;
+            case '配件': // 配件不能手动调整层级
+                isValid = false;
                 break;
             case '配饰': // 配饰不能在外套层级上 (z < 6)
                 if (newZ >= 6) isValid = false;
