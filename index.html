@@ -226,6 +226,31 @@
             transform: scale(0.95);
         }
 
+        /* MOJO消消乐按钮 */
+        .mojo-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #ff69b4, #ff80ab);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(255, 105, 180, 0.4);
+            z-index: 100;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .mojo-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 15px rgba(255, 105, 180, 0.6);
+        }
+        .mojo-btn:active {
+            transform: scale(0.95);
+        }
+
         /* 响应式调整 - 大屏幕 (>=1200px) */
         @media (min-width: 1200px) {
             :root {
@@ -294,7 +319,14 @@
                 font-size: 12px;
                 bottom: 40px;
             }
-            
+
+            .mojo-btn {
+                padding: 8px 16px;
+                font-size: 12px;
+                top: 10px;
+                right: 5px;
+            }
+
             .footer-stats {
                 font-size: 10px;
             }
@@ -376,6 +408,8 @@
         <!-- 底部统计 -->
         <div class="footer-stats" id="stats">Styled by 第 loading... 位 奇迹宏宏搭配师</div>
         
+        <!-- MOJO消消乐按钮 -->
+        <button class="mojo-btn" onclick="window.open('https://panda8468-ops.github.io/mojo/game.html', '_blank')">去玩MOJO消消乐Beta版</button>
         <!-- 让宏宏决定按钮 -->
         <button class="random-btn" onclick="randomOutfit()">让宏宏决定</button>
     </div>
